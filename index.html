@@ -42,14 +42,56 @@ html, body {
 <div id="map"></div>
 <div class="info">
     Table Mountain – Cape Town 🇿🇦<br>
-    3D Terrain + Buildings
+    3D Buildings + Square Zones + Cloud Obscure
 </div>
 
 <script>
+const centerLng = 18.4241;
+const centerLat = -33.9628;
+const sideMeters = 50; // Side length in meters (perimeter \~200m)
+const rings = 1; // Grid size: (2*rings+1) x (2*rings+1) = 3x3 = 9 squares
+
+const metersPerDegLat = 111319;
+const latRad = centerLat * Math.PI / 180;
+const metersPerDegLng = 111319 * Math.cos(latRad);
+
+const dLat = sideMeters / metersPerDegLat;
+const dLng = sideMeters / metersPerDegLng;
+
+const features = [];
+for (let i = -rings; i <= rings; i++) {
+    for (let j = -rings; j <= rings; j++) {
+        const minLng = centerLng + i * dLng;
+        const minLat = centerLat + j * dLat;
+        const maxLng = minLng + dLng;
+        const maxLat = minLat + dLat;
+        const coords = [
+            [minLng, minLat],
+            [maxLng, minLat],
+            [maxLng, maxLat],
+            [minLng, maxLat],
+            [minLng, minLat]
+        ];
+        features.push({
+            type: 'Feature',
+            properties: {},
+            geometry: {
+                type: 'Polygon',
+                coordinates: [coords]
+            }
+        });
+    }
+}
+
+const geoJSON = {
+    type: 'FeatureCollection',
+    features: features
+};
+
 const map = new maplibregl.Map({
     container: 'map',
-    center: [18.4241, -33.9628],   // Table Mountain
-    zoom: 13.5,
+    center: [centerLng, centerLat],
+    zoom: 18,
     pitch: 60,
     bearing: -20,
     antialias: true,
@@ -63,13 +105,6 @@ const map = new maplibregl.Map({
                 ],
                 tileSize: 256,
                 attribution: '&copy; OpenStreetMap contributors'
-            },
-            terrainSource: {
-                type: 'raster-dem',
-                tiles: [
-                    'https://demotiles.maplibre.org/terrain-tiles/tiles/{z}/{x}/{y}.png'
-                ],
-                tileSize: 256
             },
             openmaptiles: {
                 type: 'vector',
@@ -90,13 +125,7 @@ map.addControl(new maplibregl.NavigationControl());
 
 map.on('load', () => {
 
-    // ✅ Activate terrain AFTER map loads (prevents black screen)
-    map.setTerrain({
-        source: 'terrainSource',
-        exaggeration: 1.4
-    });
-
-    // ✅ Add 3D buildings
+    // Add 3D buildings
     map.addLayer({
         id: '3d-buildings',
         source: 'openmaptiles',
@@ -121,6 +150,110 @@ map.on('load', () => {
         }
     });
 
+    // Calculate bounds from all vertices
+    const bounds = new maplibregl.LngLatBounds();
+    geoJSON.features.forEach(feature => {
+        feature.geometry.coordinates[0].forEach(coord => {
+            bounds.extend(coord);
+        });
+    });
+
+    // Create obscuring GeoJSON with hole
+    const obscureGeoJSON = {
+        type: 'FeatureCollection',
+        features: [{
+            type: 'Feature',
+            properties: {},
+            geometry: {
+                type: 'Polygon',
+                coordinates: [
+                    [ // outer (counterclockwise)
+                        [-180, -85],
+                        [-180, 85],
+                        [180, 85],
+                        [180, -85],
+                        [-180, -85]
+                    ],
+                    [ // inner hole (clockwise)
+                        [bounds.getWest(), bounds.getSouth()],
+                        [bounds.getWest(), bounds.getNorth()],
+                        [bounds.getEast(), bounds.getNorth()],
+                        [bounds.getEast(), bounds.getSouth()],
+                        [bounds.getWest(), bounds.getSouth()]
+                    ]
+                ]
+            }
+        }]
+    };
+
+    // Load cloud pattern image
+    map.loadImage('https://img.freepik.com/free-photo/abstract-texture-background_23-2151897961.jpg', (error, image) => {
+        if (error) throw error;
+        map.addImage('cloud-pattern', image);
+
+        // Add obscure source and layer
+        map.addSource('obscure', {
+            type: 'geojson',
+            data: obscureGeoJSON
+        });
+
+        map.addLayer({
+            id: 'obscure-fill',
+            type: 'fill',
+            source: 'obscure',
+            paint: {
+                'fill-pattern': 'cloud-pattern',
+                'fill-opacity': 0.8
+            }
+        }, '3d-buildings'); // Insert after buildings to obscure everything outside
+    });
+
+    // Add atmospheric fog for extra effect
+    map.setFog({
+        range: [0.5, 10],
+        color: 'white',
+        'horizon-blend': 0.1
+    });
+
+    // Add square zones
+    map.addSource('squares', {
+        type: 'geojson',
+        data: geoJSON
+    });
+
+    map.addLayer({
+        id: 'square-fill',
+        type: 'fill',
+        source: 'squares',
+        paint: {
+            'fill-color': '#00ff00',
+            'fill-opacity': 0.3
+        }
+    });
+
+    map.addLayer({
+        id: 'square-line',
+        type: 'line',
+        source: 'squares',
+        paint: {
+            'line-color': '#000000',
+            'line-width': 1
+        }
+    });
+
+    // Lock map to sector
+    map.setMaxBounds(bounds);
+
+    // Fit to bounds with padding, accounting for pitch
+    map.fitBounds(bounds, {
+        padding: 50,
+        duration: 0
+    });
+
+    // Disable panning, allow rotate and zoom
+    map.dragPan.disable();
+    map.keyboard.disable(); // Disable keyboard panning
+    // Allow rotation and zoom (default enabled)
 });
 </script>
 
