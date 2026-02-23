@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Table Mountain 3D Terrain Map</title>
+
+<link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #0d1117;
+    font-family: Arial, sans-serif;
+}
+
+#map {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+}
+
+.info {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    background: rgba(0, 0, 0, 0.75);
+    color: #ffffff;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="map"></div>
+<div class="info">
+    Table Mountain – Cape Town 🇿🇦<br>
+    3D Terrain + Buildings
+</div>
+
+<script>
+const map = new maplibregl.Map({
+    container: 'map',
+    center: [18.4241, -33.9628],   // Table Mountain
+    zoom: 13.5,
+    pitch: 60,
+    bearing: -20,
+    antialias: true,
+    style: {
+        version: 8,
+        sources: {
+            osm: {
+                type: 'raster',
+                tiles: [
+                    'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'
+                ],
+                tileSize: 256,
+                attribution: '&copy; OpenStreetMap contributors'
+            },
+            terrainSource: {
+                type: 'raster-dem',
+                tiles: [
+                    'https://demotiles.maplibre.org/terrain-tiles/tiles/{z}/{x}/{y}.png'
+                ],
+                tileSize: 256
+            },
+            openmaptiles: {
+                type: 'vector',
+                url: 'https://demotiles.maplibre.org/tiles/tiles.json'
+            }
+        },
+        layers: [
+            {
+                id: 'osm-layer',
+                type: 'raster',
+                source: 'osm'
+            }
+        ]
+    }
+});
+
+map.addControl(new maplibregl.NavigationControl());
+
+map.on('load', () => {
+
+    // ✅ Activate terrain AFTER map loads (prevents black screen)
+    map.setTerrain({
+        source: 'terrainSource',
+        exaggeration: 1.4
+    });
+
+    // ✅ Add 3D buildings
+    map.addLayer({
+        id: '3d-buildings',
+        source: 'openmaptiles',
+        'source-layer': 'building',
+        type: 'fill-extrusion',
+        minzoom: 13,
+        paint: {
+            'fill-extrusion-color': [
+                'interpolate',
+                ['linear'],
+                ['get', 'render_height'],
+                0, '#aaaaaa',
+                100, '#ffcc66'
+            ],
+            'fill-extrusion-height': [
+                'coalesce',
+                ['get', 'render_height'],
+                20
+            ],
+            'fill-extrusion-base': 0,
+            'fill-extrusion-opacity': 0.9
+        }
+    });
+
+});
+</script>
+
+</body>
+</html>
