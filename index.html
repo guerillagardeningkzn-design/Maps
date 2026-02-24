@@ -79,17 +79,6 @@
 <body>
     <div id="game-container">
         <svg id="map-svg" viewBox="0 0 800 439" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-            <defs>
-                <pattern id="clouds" x="0" y="0" width="80" height="80" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                    <rect width="80" height="80" fill="rgba(200, 220, 255, 0.7)"/>
-                    <circle cx="15" cy="20" r="12" fill="rgba(230, 240, 255, 0.9)" opacity="0.6"/>
-                    <circle cx="65" cy="35" r="18" fill="rgba(210, 230, 255, 0.8)" opacity="0.5"/>
-                    <circle cx="40" cy="65" r="10" fill="rgba(255, 255, 255, 0.6)" opacity="0.7"/>
-                    <circle cx="25" cy="50" r="8" fill="rgba(220, 240, 255, 0.8)" opacity="0.4"/>
-                    <circle cx="55" cy="15" r="14" fill="rgba(190, 220, 255, 0.7)" opacity="0.6"/>
-                    <circle cx="5" cy="55" r="9" fill="rgba(255, 255, 255, 0.5)" opacity="0.8"/>
-                </pattern>
-            </defs>
             <g id="map-group">
                 <image id="map-image" xlink:href="https://capetrekking.co.za/media/images/Cape-Town-Birds-Eye-View-Map.width-800.jpg" x="0" y="0" width="800" height="439" preserveAspectRatio="xMidYMid slice"/>
                 <g id="hex-group"></g>
@@ -130,7 +119,7 @@
         const vbWidth = 800;
         const vbHeight = 439;
         const rings = 1;
-        const hexSize = 68;
+        const hexSize = 120; // Increased for better visibility
         const centerX = vbWidth / 2;
         const centerY = vbHeight / 2;
         const winThreshold = 30;
@@ -166,7 +155,7 @@
             const points = corners.join(' ');
             const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
             poly.setAttribute('points', points);
-            poly.setAttribute('fill', 'url(#clouds)');
+            poly.setAttribute('fill', 'rgba(200,200,200,0.85)'); // Solid gray for cloud effect
             poly.setAttribute('stroke', '#000000');
             poly.setAttribute('stroke-width', '1.5');
             poly.setAttribute('stroke-linejoin', 'round');
@@ -216,56 +205,7 @@
                 if (score < 0) {
                     msg += ' | Game Over: Lost in the mist!';
                 } else if (revealedCount === totalZones) {
-                    if (score >= winThreshold) {
-                        msg += `<br><strong>Victory! Table Mountain Master Explorer!</strong>`;
-                    } else {
-                        msg += `<br>Map conquered, but score low. Try again!`;
-                    }
-                }
-                messageEl.innerHTML = msg;
-                updateUI();
-            }
-        }
-
-        function updateUI() {
-            scoreEl.textContent = score;
-            revealedCountEl.textContent = `\( {revealedCount}/ \){totalZones}`;
-        }
-
-        function updateTransform() {
-            mapGroup.setAttribute('transform', `translate(${panX} \( {panY}) scale( \){zoom})`);
-        }
-
-        function clampPan() {
-            panX = Math.max(vbWidth * (1 - zoom), Math.min(panX, 0));
-            panY = Math.max(vbHeight * (1 - zoom), Math.min(panY, 0));
-            updateTransform();
-        }
-
-        function initGame() {
-            score = 0;
-            revealedCount = 0;
-            revealed = new Array(totalZones).fill(false);
-            hexGroup.innerHTML = '';
-            generateHexes();
-            // Auto-reveal center
-            if (centerIdx !== -1) {
-                exploreZone(centerIdx, true);
-            }
-            panX = 0;
-            panY = 0;
-            zoom = 1;
-            updateTransform();
-            clampPan();
-            updateUI();
-            messageEl.innerHTML = 'Center sector revealed. Click hexes to explore! Drag to pan, wheel to zoom.';
-        }
-
-        // Event listeners
-        svg.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            const rect = svg.getBoundingClientRect();
-            const viewX = (e.clientX - rect.left) / rect.width * vbWidth;
+                    if (score rect.left) / rect.width * vbWidth;
             const viewY = (e.clientY - rect.top) / rect.height * vbHeight;
             const zoomFactor = e.deltaY > 0 ? 0.85 : 1.18;
             let newZoom = zoom * zoomFactor;
